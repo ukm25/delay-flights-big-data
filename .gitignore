@@ -1,0 +1,10 @@
+*.csv
+*.parquet
+.DS_Store
+__pycache__/
+*.pyc
+dashboard/node_modules/
+dashboard/.next/
+spark-warehouse/
+metastore_db/
+derby.log
