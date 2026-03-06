@@ -9,4 +9,4 @@ RUN apt-get update >/dev/null && \
 RUN pip install --no-cache-dir pyspark==3.5.0 numpy >/dev/null 2>&1
 
 WORKDIR /app
-CMD ["python", "capstone_project.py"]
+CMD ["python", "final_project.py"]

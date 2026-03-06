@@ -8,3 +8,4 @@ dashboard/.next/
 spark-warehouse/
 metastore_db/
 derby.log
+dashboard_data.json
