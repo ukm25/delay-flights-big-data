@@ -175,11 +175,21 @@ def main():
     # Tắt log Spark ở mức INFO/WARN để màn hình log gọn
     spark.sparkContext.setLogLevel("ERROR")
 
+    t1 = time.time()
     df_raw = step_1_data_ingestion(spark)
-    df_clean = step_2_data_cleaning(df_raw)
+    print(f"--> [Time] Step 1 (Ingestion) took: {time.time() - t1:.2f}s")
 
+    t2 = time.time()
+    df_clean = step_2_data_cleaning(df_raw)
+    print(f"--> [Time] Step 2 (Cleaning) took: {time.time() - t2:.2f}s")
+
+    t3 = time.time()
     analysis_results = step_3_data_analysis(df_clean)
+    print(f"--> [Time] Step 3 (Analysis) took: {time.time() - t3:.2f}s")
+
+    t4 = time.time()
     ml_results = step_4_machine_learning(df_clean)
+    print(f"--> [Time] Step 4 (Machine Learning) took: {time.time() - t4:.2f}s")
 
     # Export results for chart rendering
     final_data = {"analysis": analysis_results, "machine_learning": ml_results}

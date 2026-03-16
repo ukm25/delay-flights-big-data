@@ -4,8 +4,27 @@ import { existsSync, copyFileSync } from 'fs';
 
 export const dynamic = 'force-dynamic';
 
+// Server-side mutex: prevent multiple Docker containers from spawning at once
+let isRunning = false;
+
 export async function GET() {
     const encoder = new TextEncoder();
+
+    // Guard: reject if pipeline already running
+    if (isRunning) {
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify('[SYSTEM] Pipeline is already running. Please wait for it to finish.')}\n\n`));
+                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                controller.close();
+            }
+        });
+        return new Response(stream, {
+            headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' }
+        });
+    }
+
+    isRunning = true;
 
     const stream = new ReadableStream({
         start(controller) {
@@ -28,6 +47,7 @@ export async function GET() {
             pyProcess.stderr.on('data', streamData);
 
             pyProcess.on('close', (code) => {
+                isRunning = false;
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(`[SYSTEM] Pipeline finished (Code: ${code})`)}\n\n`));
 
                 // Copy dashboard_data.json to public/ so frontend can fetch it
@@ -48,6 +68,7 @@ export async function GET() {
             });
 
             pyProcess.on('error', (err) => {
+                isRunning = false;
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(`[SYSTEM ERROR] Failed to start pipeline: ${err.message}`)}\n\n`));
                 controller.close();
             });

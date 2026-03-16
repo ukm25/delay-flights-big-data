@@ -50,9 +50,12 @@ export default function PipelinePage() {
     const [logs, setLogs] = useState<string[]>([]);
     const [status, setStatus] = useState<'connecting' | 'running' | 'completed' | 'error'>('connecting');
     const [chartData, setChartData] = useState<DashboardData | null>(null);
-    const logsEndRef = useRef<HTMLDivElement>(null);
+    const logsContainerRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => { logsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [logs]);
+    useEffect(() => {
+        const el = logsContainerRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+    }, [logs]);
 
     useEffect(() => {
         let eventSource: EventSource;
@@ -201,9 +204,6 @@ export default function PipelinePage() {
                     <Title level={4} style={{ margin: 0 }}>Execution Terminal</Title>
                 </Space>
                 <Space size="large">
-                    <Tag style={{ border: '1px solid #303030', background: '#1f1f1f' }}>
-                        <span style={{ fontFamily: 'monospace' }}>final_project.py</span>
-                    </Tag>
                     <div style={{ background: '#1f1f1f', padding: '4px 16px', borderRadius: 16, border: '1px solid #303030' }}>
                         {getStatusBadge()}
                     </div>
@@ -223,10 +223,11 @@ export default function PipelinePage() {
                         body: { overflowY: 'auto', maxHeight: chartData ? 260 : 'calc(100vh - 130px)', padding: 20, fontFamily: "Consolas, Monaco, monospace", fontSize: 13 }
                     }}
                 >
-                    {logs.length === 0 && <Spin description="Waiting for PySpark Context..." size="large" style={{ display: 'block', marginTop: 40 }} />}
-                    {logs.map((log, i) => renderLog(log, i))}
-                    {status === 'running' && <span style={{ display: 'inline-block', width: 8, height: 14, background: '#1677ff', animation: 'blink 1s step-end infinite' }} />}
-                    <div ref={logsEndRef} />
+                    <div ref={logsContainerRef} style={{ overflowY: 'auto', maxHeight: chartData ? 240 : 'calc(100vh - 160px)' }}>
+                        {logs.length === 0 && <Spin description="Waiting for PySpark Context..." size="large" style={{ display: 'block', marginTop: 40 }} />}
+                        {logs.map((log, i) => renderLog(log, i))}
+                        {status === 'running' && <span style={{ display: 'inline-block', width: 8, height: 14, background: '#1677ff', animation: 'blink 1s step-end infinite' }} />}
+                    </div>
                 </Card>
 
                 {/* Charts */}
@@ -244,21 +245,21 @@ export default function PipelinePage() {
                             <Col xs={24} sm={8}>
                                 <Card style={CARD_STYLE} styles={{ body: { padding: 20 } }}>
                                     <Statistic title={<span style={{ color: '#8c8c8c' }}>ML Accuracy (Decision Tree)</span>}
-                                        value={chartData.machine_learning.accuracy} precision={2} suffix="%" valueStyle={{ color: '#52c41a', fontSize: 30 }} prefix={<FunctionOutlined />} />
+                                        value={chartData.machine_learning.accuracy} precision={2} suffix="%" styles={{ content: { color: '#52c41a', fontSize: 30 } }} prefix={<FunctionOutlined />} />
                                 </Card>
                             </Col>
                             <Col xs={24} sm={8}>
                                 <Card style={CARD_STYLE} styles={{ body: { padding: 20 } }}>
                                     <Statistic title={<span style={{ color: '#8c8c8c' }}>Worst Delay Airport</span>}
                                         value={originsSorted[0]?.ORIGIN ?? '-'} suffix={`${originsSorted[0]?.Avg_Dep_Delay_Minutes ?? ''}m avg`}
-                                        valueStyle={{ color: '#ff4d4f', fontSize: 30 }} prefix={<RiseOutlined />} />
+                                        styles={{ content: { color: '#ff4d4f', fontSize: 30 } }} prefix={<RiseOutlined />} />
                                 </Card>
                             </Col>
                             <Col xs={24} sm={8}>
                                 <Card style={CARD_STYLE} styles={{ body: { padding: 20 } }}>
                                     <Statistic title={<span style={{ color: '#8c8c8c' }}>Top Delay Factor</span>}
                                         value={featureSorted.at(-1)?.feature ?? '-'} suffix={`${(featureSorted.at(-1)?.impact ?? 0).toFixed(1)}%`}
-                                        valueStyle={{ color: '#faad14', fontSize: 30 }} prefix={<DotChartOutlined />} />
+                                        styles={{ content: { color: '#faad14', fontSize: 30 } }} prefix={<DotChartOutlined />} />
                                 </Card>
                             </Col>
                         </Row>
@@ -266,25 +267,25 @@ export default function PipelinePage() {
                         <Row gutter={[16, 16]}>
                             {/* Pie */}
                             <Col xs={24} lg={12}>
-                                <Card title="🥧 Delay Causes Breakdown" style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
+                                <Card title={<Title level={4} style={{ margin: 0, color: '#1677ff' }}>🥧 Delay Causes Breakdown</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
                                     <HighchartsReact highcharts={Highcharts} options={pieOptions} />
                                 </Card>
                             </Col>
                             {/* Feature Importance Bar */}
                             <Col xs={24} lg={12}>
-                                <Card title="🤖 ML Feature Importance" style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
+                                <Card title={<Title level={4} style={{ margin: 0, color: '#faad14' }}>🤖 ML Feature Importance</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
                                     <HighchartsReact highcharts={Highcharts} options={barOptions} />
                                 </Card>
                             </Col>
                             {/* Top Airports Column */}
                             <Col xs={24}>
-                                <Card title="🛫 Top 10 Origin Airports — Worst Departure Delays" style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
+                                <Card title={<Title level={4} style={{ margin: 0, color: '#4096ff' }}>🛫 Top 10 Origin Airports — Worst Departure Delays</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
                                     <HighchartsReact highcharts={Highcharts} options={columnOptions} />
                                 </Card>
                             </Col>
                             {/* Monthly Line */}
                             <Col xs={24}>
-                                <Card title="📈 Average Arrival Delay by Month" style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
+                                <Card title={<Title level={4} style={{ margin: 0, color: '#52c41a' }}>📈 Average Arrival Delay by Month</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
                                     <HighchartsReact highcharts={Highcharts} options={lineOptions} />
                                 </Card>
                             </Col>
