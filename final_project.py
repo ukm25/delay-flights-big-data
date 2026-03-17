@@ -1,4 +1,7 @@
 import time
+TOTAL_START_TIME = time.time()
+print("\n[PHASE 1] Initializing PySpark Engine...")
+
 import json
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when, count, round, avg, sum, desc, month
@@ -15,18 +18,82 @@ NEEDED_COLS = [
     "DISTANCE", "FL_DATE"
 ]
 
-def step_1_data_ingestion(spark):
-    print("\n[PHASE 1] Executing Data Ingestion from HDFS Storage...")
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+
+def step_1_hdfs_ingestion(spark):
+    print("\n[PHASE 2] Executing HDFS Data Ingestion...")
     hdfs_url = "hdfs://namenode:9000/input/flight_delay_18M.csv"
-    local_url = "/Users/quangnm/MasterFSB/Big Data/FinalBigData/flight_delay_18M.csv"
+    local_url = "flight_delay_18M.csv"
+
+    # Define schema to avoid expensive inferSchema on 3.4GB file
+    schema = StructType([
+        StructField("airline_id", IntegerType(), True),
+        StructField("FL_DATE", StringType(), True),
+        StructField("OP_UNIQUE_CARRIER", StringType(), True),
+        StructField("OP_CARRIER_FL_NUM", StringType(), True),
+        StructField("ORIGIN_AIRPORT_ID", IntegerType(), True),
+        StructField("ORIGIN", StringType(), True),
+        StructField("ORIGIN_CITY_NAME", StringType(), True),
+        StructField("ORIGIN_STATE_ABR", StringType(), True),
+        StructField("ORIGIN_STATE_FIPS", IntegerType(), True),
+        StructField("ORIGIN_STATE_NM", StringType(), True),
+        StructField("ORIGIN_WAC", IntegerType(), True),
+        StructField("DEST_AIRPORT_ID", IntegerType(), True),
+        StructField("DEST", StringType(), True),
+        StructField("DEST_CITY_NAME", StringType(), True),
+        StructField("DEST_STATE_ABR", StringType(), True),
+        StructField("DEST_STATE_FIPS", IntegerType(), True),
+        StructField("DEST_STATE_NM", StringType(), True),
+        StructField("DEST_WAC", IntegerType(), True),
+        StructField("CRS_DEP_TIME", IntegerType(), True),
+        StructField("DEP_TIME", IntegerType(), True),
+        StructField("DEP_DELAY", FloatType(), True),
+        StructField("DEP_DELAY_NEW", FloatType(), True),
+        StructField("DEP_DEL15", FloatType(), True),
+        StructField("DEP_DELAY_GROUP", IntegerType(), True),
+        StructField("DEP_TIME_BLK", StringType(), True),
+        StructField("CRS_ARR_TIME", IntegerType(), True),
+        StructField("ARR_TIME", IntegerType(), True),
+        StructField("ARR_DELAY", FloatType(), True),
+        StructField("ARR_DEL15", FloatType(), True),
+        StructField("ARR_DELAY_GROUP", IntegerType(), True),
+        StructField("ARR_TIME_BLK", StringType(), True),
+        StructField("CANCELLED", FloatType(), True),
+        StructField("CANCELLATION_CODE", StringType(), True),
+        StructField("DIVERTED", FloatType(), True),
+        StructField("CRS_ELAPSED_TIME", FloatType(), True),
+        StructField("ACTUAL_ELAPSED_TIME", FloatType(), True),
+        StructField("AIR_TIME", FloatType(), True),
+        StructField("FLIGHTS", FloatType(), True),
+        StructField("DISTANCE", FloatType(), True),
+        StructField("DISTANCE_GROUP", IntegerType(), True),
+        StructField("CARRIER_DELAY", FloatType(), True),
+        StructField("WEATHER_DELAY", FloatType(), True),
+        StructField("NAS_DELAY", FloatType(), True),
+        StructField("SECURITY_DELAY", FloatType(), True),
+        StructField("LATE_AIRCRAFT_DELAY", FloatType(), True),
+        StructField("DEP_DELAY_OVER15", FloatType(), True),
+        StructField("ARR_DELAY_OVER15", FloatType(), True),
+        StructField("TOTAL_DELAY", FloatType(), True),
+        StructField("ANY_DELAY", FloatType(), True)
+    ])
 
     try:
-        df = spark.read.csv(hdfs_url, header=True, inferSchema=True)
+        # Giảm thời gian chờ bằng cách không dùng inferSchema
+        df = spark.read.csv(hdfs_url, header=True, schema=schema)
+        # Kiểm tra xem có dữ liệu không bằng một action nhẹ
+        df.limit(1).collect()
         print("[Task 1] SUCCESSFULLY loaded 3.4GB dataset from Hadoop HDFS!")
     except Exception as e:
-        print("[Warning] Hadoop Cluster is offline, falling back to Local Storage...")
-        df = spark.read.csv(local_url, header=True, inferSchema=True)
+        print(f"[Warning] HDFS Connection Failed: {str(e)[:200]}...")
+        print("[Warning] Falling back to Local Storage...")
+        df = spark.read.csv(local_url, header=True, schema=schema)
         print("[Task 1] Successfully loaded dataset from Local Storage!")
+
+    # In ra 5 record đầu và tổng số cột để kiểm tra trước khi lọc
+    print(f"\n[Debug] Raw Dataset contains {len(df.columns)} columns.")
+    print("[Debug] Previewing first 5 records of raw data:")
+    df.show(5)
 
     # Column pruning: chỉ giữ lại những cột thực sự dùng
     df = df.select([c for c in NEEDED_COLS if c in df.columns])
@@ -35,7 +102,7 @@ def step_1_data_ingestion(spark):
     return df
 
 def step_2_data_cleaning(df):
-    print("\n[PHASE 2] Executing Data Cleaning and Preprocessing...")
+    print("\n[PHASE 3] Executing Data Cleaning and Preprocessing...")
 
     df_clean = df.filter(col("CANCELLED") == 0) \
                  .drop("CANCELLED")
@@ -53,7 +120,7 @@ def step_2_data_cleaning(df):
     return df_clean
 
 def step_3_data_analysis(df):
-    print("\n[PHASE 3] Executing Data Analysis & Aggregation...")
+    print("\n[PHASE 4] Executing Data Analysis & Aggregation...")
 
     print("--- 3.1: Total Delay Minutes by Cause")
     delay_causes = df.select(
@@ -105,7 +172,7 @@ def step_3_data_analysis(df):
     }
 
 def step_4_machine_learning(df):
-    print("\n[PHASE 4] Executing Machine Learning (Delay Prediction Training)...")
+    print("\n[PHASE 5] Executing Machine Learning (Delay Prediction Training)...")
 
     print("--- 4.1: Preparing ML Dataset (Binary Labeling 0/1)")
     ml_df = df.filter(col("ARR_DELAY").isNotNull()) \
@@ -162,34 +229,36 @@ def step_4_machine_learning(df):
     return ml_results
 
 def main():
-    start_time = time.time()
-
+    global TOTAL_START_TIME
+    
     spark = SparkSession.builder \
         .appName("Flight_Delay_BigData_Pipeline") \
         .config("spark.sql.adaptive.enabled", "true") \
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
         .config("spark.sql.shuffle.partitions", "20") \
         .config("spark.default.parallelism", "8") \
+        .config("spark.ui.showConsoleProgress", "false") \
         .getOrCreate()
 
     # Tắt log Spark ở mức INFO/WARN để màn hình log gọn
     spark.sparkContext.setLogLevel("ERROR")
+    print(f"--> [Time] Step 1 (Engine Init) took: {time.time() - TOTAL_START_TIME:.2f}s")
 
     t1 = time.time()
-    df_raw = step_1_data_ingestion(spark)
-    print(f"--> [Time] Step 1 (Ingestion) took: {time.time() - t1:.2f}s")
+    df_raw = step_1_hdfs_ingestion(spark)
+    print(f"--> [Time] Step 2 (HDFS Ingestion) took: {time.time() - t1:.2f}s")
 
     t2 = time.time()
     df_clean = step_2_data_cleaning(df_raw)
-    print(f"--> [Time] Step 2 (Cleaning) took: {time.time() - t2:.2f}s")
+    print(f"--> [Time] Step 3 (Cleaning) took: {time.time() - t2:.2f}s")
 
     t3 = time.time()
     analysis_results = step_3_data_analysis(df_clean)
-    print(f"--> [Time] Step 3 (Analysis) took: {time.time() - t3:.2f}s")
+    print(f"--> [Time] Step 4 (Analysis) took: {time.time() - t3:.2f}s")
 
     t4 = time.time()
     ml_results = step_4_machine_learning(df_clean)
-    print(f"--> [Time] Step 4 (Machine Learning) took: {time.time() - t4:.2f}s")
+    print(f"--> [Time] Step 5 (Machine Learning) took: {time.time() - t4:.2f}s")
 
     # Export results for chart rendering
     final_data = {"analysis": analysis_results, "machine_learning": ml_results}

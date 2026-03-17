@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Card, Typography, Spin, Badge, Button, Layout, Space, Tag, Row, Col, Statistic, Divider } from 'antd';
+import { Card, Typography, Spin, Badge, Button, Layout, Space, Tag, Row, Col, Statistic, Divider, Steps } from 'antd';
 import {
     CodeOutlined, SyncOutlined, HomeOutlined,
     BarChartOutlined, RiseOutlined, DotChartOutlined, FunctionOutlined
@@ -52,6 +52,20 @@ export default function PipelinePage() {
     const [chartData, setChartData] = useState<DashboardData | null>(null);
     const logsContainerRef = useRef<HTMLDivElement>(null);
 
+    interface PipelineStep {
+        title: string;
+        status: 'wait' | 'process' | 'finish' | 'error';
+        duration: string;
+    }
+
+    const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([
+        { title: 'Engine Initialization', status: 'wait', duration: '' },
+        { title: 'HDFS Ingestion', status: 'wait', duration: '' },
+        { title: 'Data Cleaning', status: 'wait', duration: '' },
+        { title: 'Aggregation', status: 'wait', duration: '' },
+        { title: 'Machine Learning', status: 'wait', duration: '' },
+    ]);
+
     useEffect(() => {
         const el = logsContainerRef.current;
         if (el) el.scrollTop = el.scrollHeight;
@@ -79,7 +93,57 @@ export default function PipelinePage() {
                     try {
                         const parsed = JSON.parse(event.data);
                         setLogs(prev => [...prev, parsed]);
-                    } catch { setLogs(prev => [...prev, event.data]); }
+
+                        // Parse timing information
+                        if (typeof parsed === 'string') {
+                            const timeMatch = parsed.match(/--> \[Time\] Step (\d) \(.*?\) took: ([\d.]+)s/);
+                            if (timeMatch) {
+                                const stepIdx = parseInt(timeMatch[1]) - 1;
+                                const duration = timeMatch[2];
+                                setPipelineSteps(prev => {
+                                    const next = [...prev];
+                                    if (next[stepIdx]) {
+                                        next[stepIdx] = { ...next[stepIdx], status: 'finish', duration: `${duration}s` };
+                                        // Set next step to processing if exists
+                                        if (next[stepIdx + 1]) {
+                                            next[stepIdx + 1] = { ...next[stepIdx + 1], status: 'process' };
+                                        }
+                                    }
+                                    return next;
+                                });
+                            }
+
+                            // Update processing status based on phase markers
+                            if (parsed.includes('[PHASE 1]')) setPipelineSteps(prev => prev.map((s, i) => i === 0 ? { ...s, status: 'process' } : s));
+                            if (parsed.includes('[PHASE 2]')) setPipelineSteps(prev => prev.map((s, i) => i === 1 ? { ...s, status: 'process' } : s));
+                            if (parsed.includes('[PHASE 3]')) setPipelineSteps(prev => prev.map((s, i) => i === 2 ? { ...s, status: 'process' } : s));
+                            if (parsed.includes('[PHASE 4]')) setPipelineSteps(prev => prev.map((s, i) => i === 3 ? { ...s, status: 'process' } : s));
+                            if (parsed.includes('[PHASE 5]')) setPipelineSteps(prev => prev.map((s, i) => i === 4 ? { ...s, status: 'process' } : s));
+                        }
+                    } catch { 
+                        const logText = event.data;
+                        setLogs(prev => [...prev, logText]);
+                        
+                        // Same parsing for plain text logs
+                        const timeMatch = logText.match(/--> \[Time\] Step (\d) \(.*?\) took: ([\d.]+)s/);
+                        if (timeMatch) {
+                            const stepIdx = parseInt(timeMatch[1]) - 1; // Step numbers in logs are 1-based (1-5)
+                            const duration = timeMatch[2];
+                            setPipelineSteps(prev => {
+                                const next = [...prev];
+                                if (next[stepIdx]) {
+                                    next[stepIdx] = { ...next[stepIdx], status: 'finish', duration: `${duration}s` };
+                                    if (next[stepIdx + 1]) next[stepIdx + 1] = { ...next[stepIdx + 1], status: 'process' };
+                                }
+                                return next;
+                            });
+                        }
+                        if (logText.includes('[PHASE 1]')) setPipelineSteps(prev => prev.map((s, i) => i === 0 ? { ...s, status: 'process' } : s));
+                        if (logText.includes('[PHASE 2]')) setPipelineSteps(prev => prev.map((s, i) => i === 1 ? { ...s, status: 'process' } : s));
+                        if (logText.includes('[PHASE 3]')) setPipelineSteps(prev => prev.map((s, i) => i === 2 ? { ...s, status: 'process' } : s));
+                        if (logText.includes('[PHASE 4]')) setPipelineSteps(prev => prev.map((s, i) => i === 3 ? { ...s, status: 'process' } : s));
+                        if (logText.includes('[PHASE 5]')) setPipelineSteps(prev => prev.map((s, i) => i === 4 ? { ...s, status: 'process' } : s));
+                    }
                 }
             };
             eventSource.onerror = () => {
@@ -204,7 +268,7 @@ export default function PipelinePage() {
                     <Title level={4} style={{ margin: 0 }}>Execution Terminal</Title>
                 </Space>
                 <Space size="large">
-                    <div style={{ background: '#1f1f1f', padding: '4px 16px', borderRadius: 16, border: '1px solid #303030' }}>
+                    <div style={{ background: '#1f1f1f', height: 32, display: 'flex', alignItems: 'center', padding: '0 16px', borderRadius: 16, border: '1px solid #303030' }}>
                         {getStatusBadge()}
                     </div>
                     {status === 'completed' && (
@@ -214,16 +278,31 @@ export default function PipelinePage() {
             </Header>
 
             <Content style={{ padding: 24 }}>
+                {/* Pipeline Wizard */}
+                <Card style={{ ...CARD_STYLE, marginBottom: 24, borderRadius: 8 }} styles={{ body: { padding: '24px 40px' } }}>
+                    <Steps
+                        current={pipelineSteps.reduce((acc, s, i) => s.status !== 'wait' ? i : acc, 0)}
+                        status={status === 'error' ? 'error' : status === 'completed' ? 'finish' : 'process'}
+                        items={pipelineSteps.map((step, idx) => ({
+                            title: <span style={{ color: step.status === 'wait' ? 'rgba(255,255,255,0.45)' : '#fff' }}>{step.title}</span>,
+                            subTitle: step.duration ? (
+                                <Tag color="green" style={{ marginLeft: 8, borderRadius: 12, border: 'none' }}>{step.duration}</Tag>
+                            ) : null,
+                            status: step.status
+                        }))}
+                    />
+                </Card>
+
                 {/* Terminal */}
                 <Card
                     title={<Space><SyncOutlined spin={status === 'running'} style={{ color: '#1677ff' }} /> Live PySpark Output</Space>}
                     style={{ background: '#000', borderColor: '#303030', marginBottom: 24 }}
                     styles={{
                         header: { borderBottomColor: '#303030', background: '#141414' },
-                        body: { overflowY: 'auto', maxHeight: chartData ? 260 : 'calc(100vh - 130px)', padding: 20, fontFamily: "Consolas, Monaco, monospace", fontSize: 13 }
+                        body: { overflowY: 'auto', maxHeight: chartData ? 390 : 'calc(100vh - 130px)', padding: 20, fontFamily: "Consolas, Monaco, monospace", fontSize: 13 }
                     }}
                 >
-                    <div ref={logsContainerRef} style={{ overflowY: 'auto', maxHeight: chartData ? 240 : 'calc(100vh - 160px)' }}>
+                    <div ref={logsContainerRef} style={{ overflowY: 'auto', maxHeight: chartData ? 360 : 'calc(100vh - 160px)' }}>
                         {logs.length === 0 && <Spin description="Waiting for PySpark Context..." size="large" style={{ display: 'block', marginTop: 40 }} />}
                         {logs.map((log, i) => renderLog(log, i))}
                         {status === 'running' && <span style={{ display: 'inline-block', width: 8, height: 14, background: '#1677ff', animation: 'blink 1s step-end infinite' }} />}
@@ -235,7 +314,6 @@ export default function PipelinePage() {
                     <>
                         <Divider style={{ borderColor: '#303030' }}>
                             <Space>
-                                <BarChartOutlined style={{ color: '#1677ff' }} />
                                 <Title level={4} style={{ margin: 0, color: '#e6f4ff' }}>Analytics Dashboard</Title>
                             </Space>
                         </Divider>
@@ -267,25 +345,25 @@ export default function PipelinePage() {
                         <Row gutter={[16, 16]}>
                             {/* Pie */}
                             <Col xs={24} lg={12}>
-                                <Card title={<Title level={4} style={{ margin: 0, color: '#1677ff' }}>🥧 Delay Causes Breakdown</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
+                                <Card title={<Title level={4} style={{ margin: 0, color: '#1677ff' }}>Delay Causes Breakdown</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
                                     <HighchartsReact highcharts={Highcharts} options={pieOptions} />
                                 </Card>
                             </Col>
                             {/* Feature Importance Bar */}
                             <Col xs={24} lg={12}>
-                                <Card title={<Title level={4} style={{ margin: 0, color: '#faad14' }}>🤖 ML Feature Importance</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
+                                <Card title={<Title level={4} style={{ margin: 0, color: '#faad14' }}>ML Feature Importance</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
                                     <HighchartsReact highcharts={Highcharts} options={barOptions} />
                                 </Card>
                             </Col>
                             {/* Top Airports Column */}
                             <Col xs={24}>
-                                <Card title={<Title level={4} style={{ margin: 0, color: '#4096ff' }}>🛫 Top 10 Origin Airports — Worst Departure Delays</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
+                                <Card title={<Title level={4} style={{ margin: 0, color: '#4096ff' }}>Top 10 Origin Airports — Worst Departure Delays</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
                                     <HighchartsReact highcharts={Highcharts} options={columnOptions} />
                                 </Card>
                             </Col>
                             {/* Monthly Line */}
                             <Col xs={24}>
-                                <Card title={<Title level={4} style={{ margin: 0, color: '#52c41a' }}>📈 Average Arrival Delay by Month</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
+                                <Card title={<Title level={4} style={{ margin: 0, color: '#52c41a' }}>Average Arrival Delay by Month</Title>} style={CARD_STYLE} styles={{ header: CARD_HEADER }}>
                                     <HighchartsReact highcharts={Highcharts} options={lineOptions} />
                                 </Card>
                             </Col>

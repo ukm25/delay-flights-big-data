@@ -15,8 +15,8 @@ export default function Home() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <CodeOutlined style={{ fontSize: 48, color: '#1677ff', marginBottom: 16 }} />
-          <Title level={1} style={{ margin: 0 }}>Aviation Big Data Platform</Title>
-          <Text type="secondary" style={{ fontSize: 16 }}>
+          <Title level={1} style={{ margin: 0, color: '#1677ff' }}>Aviation Big Data Platform</Title>
+          <Text type="secondary" style={{ fontSize: 16, color: '#1677ff' }}>
             Powered by PySpark and Ant Design
           </Text>
         </div>

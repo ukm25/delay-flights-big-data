@@ -14,8 +14,10 @@ export async function GET() {
     if (isRunning) {
         const stream = new ReadableStream({
             start(controller) {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify('[SYSTEM] Pipeline is already running. Please wait for it to finish.')}\n\n`));
-                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                try {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify('[SYSTEM] Pipeline is already running. Please wait for it to finish.')}\n\n`));
+                    controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                } catch (e) {}
                 controller.close();
             }
         });
@@ -38,7 +40,12 @@ export async function GET() {
                 const lines = str.split('\n');
                 for (const line of lines) {
                     if (line.trim()) {
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(line)}\n\n`));
+                        // Filter out noisy Spark progress bars
+                        if (line.includes('[Stage ') && (line.includes('====>') || line.includes('=>'))) continue;
+                        
+                        try {
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify(line)}\n\n`));
+                        } catch (e) {}
                     }
                 }
             };
@@ -48,7 +55,9 @@ export async function GET() {
 
             pyProcess.on('close', (code) => {
                 isRunning = false;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(`[SYSTEM] Pipeline finished (Code: ${code})`)}\n\n`));
+                try {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(`[SYSTEM] Pipeline finished (Code: ${code})`)}\n\n`));
+                } catch (e) {}
 
                 // Copy dashboard_data.json to public/ so frontend can fetch it
                 const srcJson = path.join(projectRoot, 'dashboard_data.json');
@@ -57,19 +66,27 @@ export async function GET() {
                 if (existsSync(srcJson)) {
                     try {
                         copyFileSync(srcJson, destJson);
-                        controller.enqueue(encoder.encode(`data: [CHART_READY]\n\n`));
+                        try {
+                            controller.enqueue(encoder.encode(`data: [CHART_READY]\n\n`));
+                        } catch (e) {}
                     } catch (e) {
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify('[SYSTEM] Could not copy chart data.')}\n\n`));
+                        try {
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify('[SYSTEM] Could not copy chart data.')}\n\n`));
+                        } catch (e) {}
                     }
                 }
 
-                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                try {
+                    controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                } catch (e) {}
                 controller.close();
             });
 
             pyProcess.on('error', (err) => {
                 isRunning = false;
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(`[SYSTEM ERROR] Failed to start pipeline: ${err.message}`)}\n\n`));
+                try {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(`[SYSTEM ERROR] Failed to start pipeline: ${err.message}`)}\n\n`));
+                } catch (e) {}
                 controller.close();
             });
         }
