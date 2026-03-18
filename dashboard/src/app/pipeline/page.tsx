@@ -30,20 +30,20 @@ const MONTH_NAMES: Record<number, string> = {
     7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
 };
 
-// Dark theme shared across all charts
-const HC_DARK: Highcharts.Options = {
-    chart: { backgroundColor: 'transparent', style: { fontFamily: 'inherit' } },
+// Light theme for screenshots
+const HC_LIGHT: Highcharts.Options = {
+    chart: { backgroundColor: '#ffffff', style: { fontFamily: 'inherit' } },
     title: { text: '' },
     credits: { enabled: false },
     colors: ['#1677ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2', '#eb2f96'],
-    legend: { itemStyle: { color: '#aaa' }, itemHoverStyle: { color: '#fff' } },
-    xAxis: { labels: { style: { color: '#aaa' } }, lineColor: '#303030', tickColor: '#303030' },
-    yAxis: { labels: { style: { color: '#aaa' } }, gridLineColor: '#1f1f1f', title: { style: { color: '#aaa' } } },
-    tooltip: { backgroundColor: '#1f1f1f', style: { color: '#fff' }, borderColor: '#303030' },
+    legend: { itemStyle: { color: '#333' }, itemHoverStyle: { color: '#000' } },
+    xAxis: { labels: { style: { color: '#333' } }, lineColor: '#ccc', tickColor: '#ccc' },
+    yAxis: { labels: { style: { color: '#333' } }, gridLineColor: '#e0e0e0', title: { style: { color: '#333' } } },
+    tooltip: { backgroundColor: '#ffffff', style: { color: '#333' }, borderColor: '#ccc' },
     plotOptions: { series: { animation: { duration: 800 } } }
 };
 
-const mergeHC = (opts: Highcharts.Options): Highcharts.Options => Highcharts.merge(HC_DARK, opts);
+const mergeHC = (opts: Highcharts.Options): Highcharts.Options => Highcharts.merge(HC_LIGHT, opts);
 
 export default function PipelinePage() {
     const router = useRouter();
@@ -158,7 +158,7 @@ export default function PipelinePage() {
     }, []);
 
     const renderLog = (log: string, i: number) => {
-        let color = 'rgba(255,255,255,0.65)';
+        let color = '#333';
         let fontWeight = 'normal';
         if (log.includes('[ERROR]') || log.includes('Exception')) color = '#ff4d4f';
         else if (log.includes('[SUCCESS]') || log.includes('[DONE]')) { color = '#52c41a'; fontWeight = 'bold'; }
@@ -178,11 +178,11 @@ export default function PipelinePage() {
 
     // ──── Highcharts options ────
     const pieOptions = chartData ? mergeHC({
-        chart: { type: 'pie', backgroundColor: 'transparent', style: { fontFamily: 'inherit' } },
+        chart: { type: 'pie', backgroundColor: '#ffffff', style: { fontFamily: 'inherit' } },
         plotOptions: {
             pie: {
                 innerSize: '55%',
-                dataLabels: { enabled: true, color: '#ccc', format: '<b>{point.name}</b>: {point.percentage:.1f}%' },
+                dataLabels: { enabled: true, color: '#333', format: '<b>{point.name}</b>: {point.percentage:.1f}%' },
                 showInLegend: true,
                 borderWidth: 0,
             }
@@ -198,7 +198,7 @@ export default function PipelinePage() {
                 { name: 'Security', y: chartData.analysis.delay_causes.Security_Error || 0 },
             ]
         }],
-        tooltip: { backgroundColor: '#1f1f1f', borderColor: '#303030', style: { color: '#fff' }, pointFormat: '<b>{point.y:,.0f} min</b>' }
+        tooltip: { backgroundColor: '#ffffff', borderColor: '#ccc', style: { color: '#333' }, pointFormat: '<b>{point.y:,.0f} min</b>' }
     }) : {};
 
     const originsSorted = chartData?.analysis.top_origin_delays
@@ -206,9 +206,9 @@ export default function PipelinePage() {
         .sort((a, b) => b.Avg_Dep_Delay_Minutes - a.Avg_Dep_Delay_Minutes) || [];
 
     const columnOptions = chartData ? mergeHC({
-        chart: { type: 'column', backgroundColor: 'transparent', style: { fontFamily: 'inherit' } },
-        xAxis: { categories: originsSorted.map(r => r.ORIGIN), labels: { style: { color: '#aaa' } }, lineColor: '#303030', tickColor: '#303030' },
-        yAxis: { title: { text: 'Avg Delay (min)', style: { color: '#aaa' } }, gridLineColor: '#1f1f1f', labels: { style: { color: '#aaa' } } },
+        chart: { type: 'column', backgroundColor: '#ffffff', style: { fontFamily: 'inherit' } },
+        xAxis: { categories: originsSorted.map(r => r.ORIGIN), labels: { style: { color: '#333' } }, lineColor: '#ccc', tickColor: '#ccc' },
+        yAxis: { title: { text: 'Avg Delay (min)', style: { color: '#333' } }, gridLineColor: '#e0e0e0', labels: { style: { color: '#333' } } },
         series: [{
             type: 'column',
             name: 'Avg Dep Delay',
@@ -225,16 +225,16 @@ export default function PipelinePage() {
         .sort((a, b) => a.Flight_Month - b.Flight_Month) || [];
 
     const lineOptions = chartData ? mergeHC({
-        chart: { type: 'spline', backgroundColor: 'transparent', style: { fontFamily: 'inherit' } },
-        xAxis: { categories: monthlyData.map(r => MONTH_NAMES[r.Flight_Month]), labels: { style: { color: '#aaa' } }, lineColor: '#303030', tickColor: '#303030' },
-        yAxis: { title: { text: 'Avg Delay (min)', style: { color: '#aaa' } }, gridLineColor: '#1f1f1f', labels: { style: { color: '#aaa' } } },
+        chart: { type: 'spline', backgroundColor: '#ffffff', style: { fontFamily: 'inherit' } },
+        xAxis: { categories: monthlyData.map(r => MONTH_NAMES[r.Flight_Month]), labels: { style: { color: '#333' } }, lineColor: '#ccc', tickColor: '#ccc' },
+        yAxis: { title: { text: 'Avg Delay (min)', style: { color: '#333' } }, gridLineColor: '#e0e0e0', labels: { style: { color: '#333' } } },
         series: [{
             type: 'spline',
             name: 'Avg Arr Delay',
             data: monthlyData.map(r => r.Avg_Arr_Delay_Minutes),
             color: '#52c41a',
             lineWidth: 3,
-            marker: { fillColor: '#141414', lineWidth: 2, lineColor: '#52c41a', radius: 5 },
+            marker: { fillColor: '#ffffff', lineWidth: 2, lineColor: '#52c41a', radius: 5 },
         }],
         tooltip: { valueSuffix: ' min/flight' },
     }) : {};
@@ -244,9 +244,9 @@ export default function PipelinePage() {
         .sort((a, b) => a.impact - b.impact) || [];
 
     const barOptions = chartData ? mergeHC({
-        chart: { type: 'bar', backgroundColor: 'transparent', style: { fontFamily: 'inherit' } },
-        xAxis: { categories: featureSorted.map(f => f.feature), labels: { style: { color: '#aaa' } }, lineColor: '#303030', tickColor: '#303030' },
-        yAxis: { title: { text: 'Impact (%)', style: { color: '#aaa' } }, gridLineColor: '#1f1f1f', labels: { style: { color: '#aaa' } }, max: 100 },
+        chart: { type: 'bar', backgroundColor: '#ffffff', style: { fontFamily: 'inherit' } },
+        xAxis: { categories: featureSorted.map(f => f.feature), labels: { style: { color: '#333' } }, lineColor: '#ccc', tickColor: '#ccc' },
+        yAxis: { title: { text: 'Impact (%)', style: { color: '#333' } }, gridLineColor: '#e0e0e0', labels: { style: { color: '#333' } }, max: 100 },
         series: [{
             type: 'bar',
             name: 'Impact',
@@ -257,18 +257,18 @@ export default function PipelinePage() {
         legend: { enabled: false },
     }) : {};
 
-    const CARD_STYLE = { background: '#1a1a1a', borderColor: '#303030' };
-    const CARD_HEADER = { borderBottomColor: '#303030', background: '#141414' };
+    const CARD_STYLE = { background: '#ffffff', borderColor: '#d9d9d9' };
+    const CARD_HEADER = { borderBottomColor: '#d9d9d9', background: '#fafafa' };
 
     return (
-        <Layout style={{ minHeight: '100vh', background: '#141414' }}>
-            <Header style={{ background: '#141414', borderBottom: '1px solid #303030', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', position: 'sticky', top: 0, zIndex: 10 }}>
+        <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+            <Header style={{ background: '#ffffff', borderBottom: '1px solid #d9d9d9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', position: 'sticky', top: 0, zIndex: 10 }}>
                 <Space>
                     <CodeOutlined style={{ fontSize: 22, color: '#1677ff' }} />
-                    <Title level={4} style={{ margin: 0 }}>Execution Terminal</Title>
+                    <Title level={4} style={{ margin: 0, color: '#000' }}>Execution Terminal</Title>
                 </Space>
                 <Space size="large">
-                    <div style={{ background: '#1f1f1f', height: 32, display: 'flex', alignItems: 'center', padding: '0 16px', borderRadius: 16, border: '1px solid #303030' }}>
+                    <div style={{ background: '#f0f0f0', height: 32, display: 'flex', alignItems: 'center', padding: '0 16px', borderRadius: 16, border: '1px solid #d9d9d9' }}>
                         {getStatusBadge()}
                     </div>
                     {status === 'completed' && (
@@ -284,7 +284,7 @@ export default function PipelinePage() {
                         current={pipelineSteps.reduce((acc, s, i) => s.status !== 'wait' ? i : acc, 0)}
                         status={status === 'error' ? 'error' : status === 'completed' ? 'finish' : 'process'}
                         items={pipelineSteps.map((step, idx) => ({
-                            title: <span style={{ color: step.status === 'wait' ? 'rgba(255,255,255,0.45)' : '#fff' }}>{step.title}</span>,
+                            title: <span style={{ color: step.status === 'wait' ? 'rgba(0,0,0,0.45)' : '#000' }}>{step.title}</span>,
                             subTitle: step.duration ? (
                                 <Tag color="green" style={{ marginLeft: 8, borderRadius: 12, border: 'none' }}>{step.duration}</Tag>
                             ) : null,
@@ -296,9 +296,9 @@ export default function PipelinePage() {
                 {/* Terminal */}
                 <Card
                     title={<Space><SyncOutlined spin={status === 'running'} style={{ color: '#1677ff' }} /> Live PySpark Output</Space>}
-                    style={{ background: '#000', borderColor: '#303030', marginBottom: 24 }}
+                    style={{ background: '#ffffff', borderColor: '#d9d9d9', marginBottom: 24 }}
                     styles={{
-                        header: { borderBottomColor: '#303030', background: '#141414' },
+                        header: { borderBottomColor: '#d9d9d9', background: '#fafafa' },
                         body: { overflowY: 'auto', maxHeight: chartData ? 390 : 'calc(100vh - 130px)', padding: 20, fontFamily: "Consolas, Monaco, monospace", fontSize: 13 }
                     }}
                 >
@@ -312,7 +312,7 @@ export default function PipelinePage() {
                 {/* Charts */}
                 {chartData && (
                     <>
-                        <Divider style={{ borderColor: '#303030' }}>
+                        <Divider style={{ borderColor: '#d9d9d9' }}>
                             <Space>
                                 <Title level={4} style={{ margin: 0, color: '#e6f4ff' }}>Analytics Dashboard</Title>
                             </Space>
